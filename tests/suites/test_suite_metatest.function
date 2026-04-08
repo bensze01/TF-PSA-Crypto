@@ -175,6 +175,9 @@ static void child_callback(void *param,
 
 exit:
     if (instructions->signal > 0) {
+        struct sigaction action = { .sa_handler = SIG_DFL };
+        sigfillset(&action.sa_mask);
+        sigaction(SIGHUP, &action, NULL);
         kill(getpid(), instructions->signal);
     }
     if (instructions->exit >= 0) {
