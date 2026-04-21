@@ -67,11 +67,17 @@
 #if !defined(__ASSEMBLER__)
 extern uint8_t mld_alloc_global[123200];
 extern uint8_t *mld_alloc_global_next;
+extern size_t mld_alloc_global_req;
+extern size_t mld_alloc_global_req_max;
 
 #define MLD_CUSTOM_ALLOC(v, T, N) \
     T *(v) = NULL; \
     do { \
         size_t size = MLD_ALIGN_UP(sizeof(T) * (N)); \
+        mld_alloc_global_req += size; \
+        if (mld_alloc_global_req > mld_alloc_global_req_max) { \
+            mld_alloc_global_req_max = mld_alloc_global_req; \
+        } \
         if (mld_alloc_global_next + size <= mld_alloc_global + sizeof(mld_alloc_global)) { \
             (v) = (T *) mld_alloc_global_next; \
             mld_alloc_global_next += size; \
@@ -82,6 +88,7 @@ extern uint8_t *mld_alloc_global_next;
     do { \
         if ((v) != NULL) { \
             mld_alloc_global_next = (uint8_t *) (v); \
+            mld_alloc_global_req -= MLD_ALIGN_UP(sizeof(T) * (N)); \
         } \
     } while (0)
 

@@ -28,6 +28,8 @@
 
 MLD_ALIGN uint8_t mld_alloc_global[123200];
 uint8_t *mld_alloc_global_next = mld_alloc_global;
+size_t mld_alloc_global_req = 0;
+size_t mld_alloc_global_req_max = 0;
 
 static psa_status_t pqcp_to_psa_error(int ret)
 {
