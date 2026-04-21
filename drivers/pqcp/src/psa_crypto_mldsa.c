@@ -11,6 +11,7 @@
 #include <psa/crypto.h>
 #include "psa_crypto_mldsa.h"
 #include "wrap_mldsa_native.h"
+#include "src/sys.h"
 #include <mbedtls/platform_util.h>
 
 /* The size of an ML-DSA seed in bytes.
@@ -24,6 +25,9 @@
 #define TF_PSA_CRYPTO_MLDSA_EXPANDED_SECRET_MAX_SIZE MLDSA87_SECRETKEYBYTES
 #define TF_PSA_CRYPTO_MLDSA_PUBLIC_KEY_MAX_SIZE MLDSA87_PUBLICKEYBYTES
 #define TF_PSA_CRYPTO_MLDSA_SIGNATURE_MAX_SIZE MLDSA87_BYTES
+
+MLD_ALIGN uint8_t mld_alloc_global[123200];
+uint8_t *mld_alloc_global_next = mld_alloc_global;
 
 static psa_status_t pqcp_to_psa_error(int ret)
 {

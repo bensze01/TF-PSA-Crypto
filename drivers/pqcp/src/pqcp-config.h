@@ -63,6 +63,30 @@
 /* Disable SUPERCOP interface. We don't care about that. */
 #define MLD_CONFIG_NO_SUPERCOP
 
+#define MLD_CONFIG_CUSTOM_ALLOC_FREE
+#if !defined(__ASSEMBLER__)
+extern uint8_t mld_alloc_global[123200];
+extern uint8_t *mld_alloc_global_next;
+
+#define MLD_CUSTOM_ALLOC(v, T, N) \
+    T *(v) = NULL; \
+    do { \
+        size_t size = MLD_ALIGN_UP(sizeof(T) * (N)); \
+        if (mld_alloc_global_next + size <= mld_alloc_global + sizeof(mld_alloc_global)) { \
+            (v) = (T *) mld_alloc_global_next; \
+            mld_alloc_global_next += size; \
+        } \
+    } while (0)
+
+  #define MLD_CUSTOM_FREE(v, T, N) \
+    do { \
+        if ((v) != NULL) { \
+            mld_alloc_global_next = (uint8_t *) (v); \
+        } \
+    } while (0)
+
+#endif
+
 #endif /* TF_PSA_CRYPTO_PQCP_MLDSA_ENABLED */
 
 #endif  /* tf-psa-crypto/private/pqcp-config.h */
