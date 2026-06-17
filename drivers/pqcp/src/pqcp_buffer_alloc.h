@@ -106,9 +106,18 @@ void tf_psa_crypto_pqcp_alloc_pop(size_t size);
 #define TF_PSA_CRYPTO_PQCP_CUSTOM_FREE(v, T, N)                \
     tf_psa_crypto_pqcp_alloc_pop(MLD_ALIGN_UP(sizeof(T) * (N)))
 
+#if defined(MBEDTLS_TEST_HOOKS)
+psa_status_t tf_psa_crypto_pqcp_alloc_poison_setup(int poison_mode, int poison_size);
+void tf_psa_crypto_pqcp_alloc_poison_cleanup(void);
+void tf_psa_crypto_pqcp_alloc_start_poison(void);
+#endif
+
 static inline psa_status_t tf_psa_crypto_pqcp_alloc_start(void)
 {
     TF_PSA_CRYPTO_PQCP_ALLOC_LOCK();
+#if defined(MBEDTLS_TEST_HOOKS)
+    tf_psa_crypto_pqcp_alloc_start_poison();
+#endif
     return PSA_SUCCESS;
 }
 psa_status_t tf_psa_crypto_pqcp_alloc_done(void);

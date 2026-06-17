@@ -7,7 +7,26 @@
  * validation.
  */
 
+#include <pqcp_buffer_alloc.h>
 #include <psa_crypto_mldsa.h>
+
+enum poison_mode {
+    POISON_NONE,
+    POISON_ON_LOCK,
+    POISON_ON_UNLOCK,
+};
+
+/* Sorted in increasing order*/
+enum poison_size {
+    POISON_ZERO,
+    POISON_SIGNATURE_INTERNAL_MINUS_ONE,
+    POISON_SIGNATURE_INTERNAL,
+    POISON_KEYPAIR_INTERNAL_MINUS_ONE,
+    POISON_KEYPAIR_INTERNAL,
+    POISON_VERIFY_MINUS_ONE,
+    POISON_VERIFY,
+    POISON_ALL,
+};
 
 /* END_HEADER */
 
@@ -19,13 +38,17 @@
 void export_public_key(int type_arg, int bits_arg,
                        data_t *seed,
                        data_t *expected_public_key,
-                       psa_status_t expected_status)
+                       psa_status_t expected_status,
+                       int poison_mode,
+                       int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     uint8_t *public_key = NULL;
 
     PSA_INIT();
 
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
+    
     psa_set_key_type(&attributes, type_arg);
     psa_set_key_bits(&attributes, bits_arg);
 
@@ -89,6 +112,7 @@ void export_public_key(int type_arg, int bits_arg,
 exit:
     mbedtls_free(public_key);
     psa_reset_key_attributes(&attributes);
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
 }
 /* END_CASE */
@@ -98,12 +122,16 @@ void sign_deterministic_pure(int type_arg, int bits_arg, int alg_arg,
                              data_t *seed,
                              data_t *message,
                              data_t *expected_signature,
-                             psa_status_t expected_status)
+                             psa_status_t expected_status,
+                             int poison_mode,
+                             int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     uint8_t *signature = NULL;
 
     PSA_INIT();
+
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type_arg);
     psa_set_key_bits(&attributes, bits_arg);
@@ -170,6 +198,7 @@ void sign_deterministic_pure(int type_arg, int bits_arg, int alg_arg,
 exit:
     mbedtls_free(signature);
     psa_reset_key_attributes(&attributes);
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
 }
 /* END_CASE */
@@ -179,12 +208,16 @@ void verify_pure(int type_arg, int bits_arg, int alg_arg,
                  data_t *public_key,
                  data_t *message,
                  data_t *signature,
-                 psa_status_t expected_status)
+                 psa_status_t expected_status,
+                 int poison_mode,
+                 int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     uint8_t *buf = NULL;
 
     PSA_INIT();
+
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type_arg);
     psa_set_key_bits(&attributes, bits_arg);
@@ -239,6 +272,7 @@ void verify_pure(int type_arg, int bits_arg, int alg_arg,
     }
 
 exit:
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
     mbedtls_free(buf);
 }
@@ -247,13 +281,17 @@ exit:
 /* BEGIN_CASE */
 void sign_setup(int type_arg, int bits_arg, int alg_arg,
                 data_t *seed,
-                psa_status_t expected_status)
+                psa_status_t expected_status,
+                int poison_mode,
+                int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     tf_psa_crypto_mldsa_operation_t operation;
     memset(&operation, 0, sizeof(operation));
 
     PSA_INIT();
+
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type_arg);
     psa_set_key_bits(&attributes, bits_arg);
@@ -275,13 +313,17 @@ exit:
 /* BEGIN_CASE */
 void verify_setup(int type_arg, int bits_arg, int alg_arg,
                   data_t *public_key,
-                  psa_status_t expected_status)
+                  psa_status_t expected_status,
+                  int poison_mode,
+                  int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     tf_psa_crypto_mldsa_operation_t operation;
     memset(&operation, 0, sizeof(operation));
 
     PSA_INIT();
+
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type_arg);
     psa_set_key_bits(&attributes, bits_arg);
@@ -296,6 +338,7 @@ void verify_setup(int type_arg, int bits_arg, int alg_arg,
 
 exit:
     tf_psa_crypto_mldsa_abort(&operation);
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
 }
 /* END_CASE */
@@ -304,7 +347,8 @@ exit:
 void sign_deterministic_multipart(
     int type, int bits, int alg, data_t *seed,
     int n_chunks, data_t *chunk1, data_t *chunk2, data_t *chunk3,
-    data_t *expected_signature, int expected_finish_status)
+    data_t *expected_signature, int expected_finish_status,
+    int poison_mode, int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     tf_psa_crypto_mldsa_operation_t operation;
@@ -315,6 +359,7 @@ void sign_deterministic_multipart(
 
     PSA_INIT();
     TEST_CALLOC(signature, signature_size);
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type);
     psa_set_key_bits(&attributes, bits);
@@ -347,6 +392,7 @@ void sign_deterministic_multipart(
 
 exit:
     tf_psa_crypto_mldsa_abort(&operation);
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
     mbedtls_free(signature);
 }
@@ -357,7 +403,8 @@ void sign_deterministic_multipart_finish(
     int type, int bits, int alg, data_t *seed,
     data_t *message,
     data_t *expected_signature, int signature_size_delta,
-    int expected_finish_status)
+    int expected_finish_status,
+    int poison_mode, int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     tf_psa_crypto_mldsa_operation_t operation;
@@ -368,6 +415,7 @@ void sign_deterministic_multipart_finish(
 
     PSA_INIT();
     TEST_CALLOC(signature, signature_size);
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type);
     psa_set_key_bits(&attributes, bits);
@@ -399,13 +447,16 @@ exit:
 void verify_multipart(
     int type, int bits, int alg, data_t *public_key,
     int n_chunks, data_t *chunk1, data_t *chunk2, data_t *chunk3,
-    data_t *signature, int expected_verify_status)
+    data_t *signature, int expected_verify_status,
+    int poison_mode, int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     tf_psa_crypto_mldsa_operation_t operation;
     memset(&operation, 0, sizeof(operation));
 
     PSA_INIT();
+
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type);
     psa_set_key_bits(&attributes, bits);
@@ -433,6 +484,7 @@ void verify_multipart(
 
 exit:
     tf_psa_crypto_mldsa_abort(&operation);
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
 }
 /* END_CASE */
@@ -442,7 +494,8 @@ void verify_multipart_finish(
     int type, int bits, int alg,
     data_t *setup_public_key, data_t *finish_public_key,
     data_t *message,
-    data_t *signature, int expected_verify_status)
+    data_t *signature, int expected_verify_status,
+    int poison_mode, int poison_size)
 {
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     tf_psa_crypto_mldsa_operation_t operation;
@@ -454,6 +507,8 @@ void verify_multipart_finish(
     uint8_t *public_key = NULL;
 
     PSA_INIT();
+
+    TEST_EQUAL(tf_psa_crypto_pqcp_alloc_poison_setup(poison_mode, poison_size), 0);
 
     psa_set_key_type(&attributes, type);
     psa_set_key_bits(&attributes, bits);
@@ -482,6 +537,7 @@ void verify_multipart_finish(
 
 exit:
     tf_psa_crypto_mldsa_abort(&operation);
+    tf_psa_crypto_pqcp_alloc_poison_cleanup();
     PSA_DONE();
     mbedtls_free(public_key);
 }
